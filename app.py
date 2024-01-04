@@ -1,83 +1,42 @@
-import streamlit as st
-from PIL import Image
+#Library imports
 import numpy as np
-import tensorflow.keras as keras
-import matplotlib.pyplot as plt
-import tensorflow_hub as hub
+import streamlit as st
+import cv2
+from keras.models import load_model
 
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html = True)
+#Loading the Model
+model = load_model('./dataset/disease.h5')
 
-st.title('TOMATO PLANT DISEASE PREDICTION')
+#Name of Classes
+CLASS_NAMES = ['Corn-Common_rust', 'Potato-Early_blight', 'Tomato-Bacterial_spot']
 
-def main() :
-    file_uploaded = st.file_uploader('Choose an image...', type = 'jpg')
-    if file_uploaded is not None :
-        image = Image.open(file_uploaded)
-        st.write("Uploaded Image...")
-        figure = plt.figure()
-        plt.imshow(image)
-        plt.axis('off')
-        st.pyplot(figure)
-        result, confidence = predict_class(image)
-        st.write('Prediction : {}'.format(result))
-        st.write('Confidence : {}%'.format(confidence))
+#Setting Title of App
+st.title("Plant Disease Detection")
+st.markdown("Upload an image of the plant leaf")
 
-def predict_class(image) :
-    with st.spinner('Loading Model...'):
-        classifier_model = keras.models.load_model(r'tomato.h5', compile = False)
+#Uploading the dog image
+plant_image = st.file_uploader("Choose an image...", type="jpg")
+submit = st.button('Predict')
+#On predict button click
+if submit:
 
-    shape = ((256,256,3))
-    model = keras.Sequential([hub.KerasLayer(classifier_model, input_shape = shape)])     
-    test_image = image.resize((256, 256))
-    test_image = keras.preprocessing.image.img_to_array(test_image)
-    test_image /= 255.0
-    test_image = np.expand_dims(test_image, axis = 0)
-    class_name = ['Tomato_Bacterial_spot', 'Tomato_Early_blight', 'Tomato_Late_blight', 'Tomato_Leaf_Mold', 'Tomato_Septoria_leaf_spot', 'Tomato_Spider_mites_Two_spotted_spider_mite', 'Tomato__Target_Spot', 'Tomato__Tomato_YellowLeaf__Curl_Virus', 'Tomato__Tomato_mosaic_virus', 'Tomato_healthy']
-    prediction = model.predict(test_image)
-    confidence = round(100 * (np.max(prediction[0])), 2)
-    final_pred = class_name[np.argmax(prediction)]
-    return final_pred, confidence
 
-footer = """<style>
-a:link , a:visited{
-    color: black;
-    background-color: transparent ;
-    text-decoration: none;
-}
+    if plant_image is not None:
 
-a:hover,  a:active {
-    color: red;
-    background-color: transparent;
-    text-decoration: none;
-}
+        # Convert the file to an opencv image.
+        file_bytes = np.asarray(bytearray(plant_image.read()), dtype=np.uint8)
+        opencv_image = cv2.imdecode(file_bytes, 1)
 
-.footer {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    background-color: transparent;
-    color: black;
-    text-align: center;
-}
-</style>
 
-<div class="footer">
-<p align="center"> 
-<a href="https://github.com/ilegnaa">
-"In the fields of tomorrow, deep learning becomes the guardian of tomato plants.😂"
- </a>
- </p>
-</div>
-        """
 
-st.markdown(footer, unsafe_allow_html = True)
-
-if __name__ == '__main__' :
-    main()
+        # Displaying the image
+        st.image(opencv_image, channels="BGR")
+        st.write(opencv_image.shape)
+        #Resizing the image
+        opencv_image = cv2.resize(opencv_image, (256,256))
+        #Convert image to 4 Dimension
+        opencv_image.shape = (1,256,256,3)
+        #Make Prediction
+        Y_pred = model.predict(opencv_image)
+        result = CLASS_NAMES[np.argmax(Y_pred)]
+        st.title(str("This is "+result.split('-')[0]+ " leaf with " + result.split('-')[1]))
